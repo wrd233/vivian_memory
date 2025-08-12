@@ -54,7 +54,6 @@ export class ParticleSystem {
       const y = this.getTerrainHeight(x, z);
       
       positions[i * 3] = x;
-      positions[i * 3] = x;
       positions[i * 3 + 1] = y;
       positions[i * 3 + 2] = z;
       
@@ -220,20 +219,20 @@ export class ParticleSystem {
       const x = positions[i * 3];
       const z = positions[i * 3 + 2];
       
-      // 基础地形高度 - 更明显的地形波动
-      const baseY = this.getTerrainHeight(x + Math.sin(time * 0.15) * 25, z + Math.cos(time * 0.15) * 25);
+      // 基础地形高度 - 沉稳缓慢的地形波动
+      const baseY = this.getTerrainHeight(x + Math.sin(time * 0.05) * 8, z + Math.cos(time * 0.05) * 8);
       
-      // 添加上下飘动效果 - 明显波动
-      const floatAmplitude = 2.5; // 飘动幅度（增加5倍）
-      const floatFrequency = 1.2; // 飘动频率（增加2.4倍）
+      // 添加上下飘动效果 - 沉稳微妙的波动
+      const floatAmplitude = 0.3; // 飘动幅度（大幅减小）
+      const floatFrequency = 0.2; // 飘动频率（大幅减慢）
       const waveOffset = waveOffsets[i];
       const floatY = baseY + Math.sin(time * floatFrequency + waveOffset) * floatAmplitude;
       
       positions[i * 3 + 1] = floatY;
       
-      // 添加闪烁效果 - 明显的光度变化
-      const flickerAmplitude = 0.4; // 闪烁幅度（增加2.7倍）
-      const flickerFrequency = 3.5; // 闪烁频率（增加1.75倍）
+      // 添加闪烁效果 - 沉稳微妙的光度变化
+      const flickerAmplitude = 0.08; // 闪烁幅度（大幅减小）
+      const flickerFrequency = 0.8; // 闪烁频率（大幅减慢）
       const flickerPhase = flickerPhases[i];
       const flickerValue = Math.sin(time * flickerFrequency + flickerPhase) * 0.5 + 0.5;
       
@@ -247,7 +246,7 @@ export class ParticleSystem {
       const baseColor = this.calculateColor(floatY, x, z);
       
       // 根据闪烁值调整亮度
-      const brightnessBoost = flickerValue * 0.4;
+      const brightnessBoost = flickerValue * 0.1;
       colors[i * 3] = Math.min(1.0, baseColor.r + brightnessBoost);
       colors[i * 3 + 1] = Math.min(1.0, baseColor.g + brightnessBoost * 0.8);
       colors[i * 3 + 2] = Math.min(1.0, baseColor.b + brightnessBoost * 0.6);
@@ -257,8 +256,8 @@ export class ParticleSystem {
     this.geometry.attributes.color.needsUpdate = true;
     this.geometry.attributes.opacity.needsUpdate = true;
     
-    // 轻微旋转整个粒子系统，创造海洋波动感
-    this.particles.rotation.y = time * 0.005; // 更缓慢的旋转
+    // 沉稳缓慢的整体旋转
+    this.particles.rotation.y = time * 0.002; // 极其缓慢的旋转
   }
 
   /**

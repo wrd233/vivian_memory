@@ -88,9 +88,9 @@ class InteractiveParticleSea {
         this.controls.update();
       }
       
-      // 更新粒子系统材质时间
-      if (this.particleSystem && this.particleSystem.material.uniforms) {
-        this.particleSystem.material.uniforms.time.value = Date.now() * 0.001;
+      // 更新粒子系统
+      if (this.particleSystem) {
+        this.particleSystem.update(Date.now() * 0.001);
       }
       
       // 渲染场景
