@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互动粒子星海 | Interactive Particle Sea</title>
+    <meta name="description" content="一个数字化的情感景观，由无数光点组成的记忆之海">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app"></div>
+    
+    <div class="ui-overlay">
+        <div class="header">
+            <h1>互动粒子星海</h1>
+            <p>移动鼠标，探索这片由记忆组成的海洋</p>
+        </div>
+        
+        <div class="controls">
+            <div class="control-item">
+                <label>粒子数量</label>
+                <span class="value" id="particle-count">50,000</span>
+            </div>
+            <div class="control-item">
+                <label>帧率</label>
+                <span class="value" id="fps">60</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>

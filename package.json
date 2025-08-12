@@ -1,0 +1,30 @@
+{
+  "name": "interactive-particle-sea",
+  "version": "1.0.0",
+  "description": "Interactive particle sea - a digital emotional landscape",
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "three.js",
+    "webgl",
+    "particles",
+    "interactive"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "simplex-noise": "^4.0.3",
+    "three": "^0.179.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.33.0",
+    "prettier": "^3.6.2",
+    "vite": "^7.1.2"
+  }
+}
