@@ -4,8 +4,19 @@
  */
 export class MemoryStorage {
   constructor() {
-    this.apiUrl = 'http://localhost:3001/api';
-    this.serverUrl = 'http://localhost:3001';
+    // 检测运行环境
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    if (isLocalhost) {
+      // 本地开发环境
+      this.apiUrl = 'http://localhost:3001/api';
+      this.serverUrl = 'http://localhost:3001';
+    } else {
+      // 云端部署环境 - 使用当前域名
+      const baseUrl = window.location.origin;
+      this.apiUrl = `${baseUrl}/api`;
+      this.serverUrl = baseUrl;
+    }
   }
 
   /**
