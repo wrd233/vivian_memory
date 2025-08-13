@@ -35,6 +35,13 @@ export class InteractionManager {
     this.originalCameraPosition = new THREE.Vector3();
     this.originalCameraTarget = new THREE.Vector3();
     
+    // 拖动检测相关
+    this.isDragging = false;
+    this.mouseDownPos = new THREE.Vector2();
+    this.mouseDownTime = 0;
+    this.dragThreshold = 5; // 像素
+    this.longPressThreshold = 200; // 毫秒
+    
     this.init();
   }
 
@@ -64,6 +71,8 @@ export class InteractionManager {
    */
   setupEventListeners() {
     this.renderer.domElement.addEventListener('mousemove', this.onMouseMove.bind(this));
+    this.renderer.domElement.addEventListener('mousedown', this.onMouseDown.bind(this));
+    this.renderer.domElement.addEventListener('mouseup', this.onMouseUp.bind(this));
     this.renderer.domElement.addEventListener('click', this.onClick.bind(this));
     document.addEventListener('keydown', this.onKeyDown.bind(this));
     
@@ -80,6 +89,17 @@ export class InteractionManager {
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
+    // 检测是否正在拖动
+    if (this.mouseDownPos.x !== 0 || this.mouseDownPos.y !== 0) {
+      const deltaX = Math.abs(event.clientX - this.mouseDownPos.x);
+      const deltaY = Math.abs(event.clientY - this.mouseDownPos.y);
+      const deltaTime = Date.now() - this.mouseDownTime;
+      
+      if (deltaX > this.dragThreshold || deltaY > this.dragThreshold || deltaTime > this.longPressThreshold) {
+        this.isDragging = true;
+      }
+    }
+
     // 检测悬停的粒子
     const hoveredIndex = this.getHoveredParticle();
     
@@ -90,7 +110,7 @@ export class InteractionManager {
       }
       
       // 高亮新的悬停粒子
-      if (hoveredIndex !== null) {
+      if (hoveredIndex !== null && !this.isDragging) {
         this.highlightParticle(hoveredIndex, false); // false表示悬停状态
       }
       
@@ -99,10 +119,32 @@ export class InteractionManager {
   }
 
   /**
+   * 鼠标按下事件
+   */
+  onMouseDown(event) {
+    this.mouseDownPos.set(event.clientX, event.clientY);
+    this.mouseDownTime = Date.now();
+    this.isDragging = false;
+  }
+
+  /**
+   * 鼠标抬起事件
+   */
+  onMouseUp(event) {
+    this.mouseDownPos.set(0, 0);
+    this.mouseDownTime = 0;
+    
+    // 短暂延迟后重置拖动状态，给点击事件处理留出时间
+    setTimeout(() => {
+      this.isDragging = false;
+    }, 10);
+  }
+
+  /**
    * 鼠标点击事件 - 阶段二：聚焦
    */
   onClick(event) {
-    if (this.isAnimating) return;
+    if (this.isAnimating || this.isDragging) return;
 
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -338,11 +380,18 @@ export class InteractionManager {
       this.restoreParticleState(this.selectedParticle);
     }
     
-    // 使用手动动画恢复相机位置
-    const duration = 1200;
+    // 使用手动动画实现镜头后退效果
+    const duration = 1000; // 稍短的动画时间
     const startTime = Date.now();
     const startCameraPos = this.camera.position.clone();
-    const startTarget = this.controls.target.clone();
+    
+    // 计算后退位置：沿当前视线方向后退一定距离
+    const direction = new THREE.Vector3();
+    this.camera.getWorldDirection(direction);
+    direction.normalize();
+    
+    const retreatDistance = 8; // 后退距离
+    const retreatPosition = startCameraPos.clone().add(direction.multiplyScalar(retreatDistance));
     
     const animate = () => {
       if (!this.isAnimating) return;
@@ -350,21 +399,21 @@ export class InteractionManager {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       
-      // 缓动函数
+      // 缓动函数 - 使用更平缓的缓动
       const easeProgress = progress < 0.5 
-        ? 4 * progress * progress * progress 
-        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+        ? 2 * progress * progress 
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
       
-      // 恢复相机位置（保持视角方向不变）
-      this.camera.position.lerpVectors(startCameraPos, this.originalCameraPosition, easeProgress);
+      // 后退相机位置
+      this.camera.position.lerpVectors(startCameraPos, retreatPosition, easeProgress);
       
-      // 保持相机目标不变，仅恢复位置
+      // 保持相机目标不变，仅移动位置
       this.controls.update();
       
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
-        console.log('恢复动画完成，启用控制器');
+        console.log('后退动画完成，启用控制器');
         this.controls.enabled = true;
         this.selectedParticle = null;
         this.isAnimating = false;
@@ -567,6 +616,8 @@ export class InteractionManager {
     }
     
     this.renderer.domElement.removeEventListener('mousemove', this.onMouseMove.bind(this));
+    this.renderer.domElement.removeEventListener('mousedown', this.onMouseDown.bind(this));
+    this.renderer.domElement.removeEventListener('mouseup', this.onMouseUp.bind(this));
     this.renderer.domElement.removeEventListener('click', this.onClick.bind(this));
     document.removeEventListener('keydown', this.onKeyDown.bind(this));
     window.removeEventListener('resize', this.onWindowResize.bind(this));
