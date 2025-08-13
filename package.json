@@ -9,6 +9,11 @@
     "preview": "vite preview",
     "server": "node server.js",
     "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
+    "docker:build": "docker build -t particle-sea .",
+    "docker:run": "docker-compose up",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
