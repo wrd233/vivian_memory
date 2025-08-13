@@ -13,5 +13,10 @@
     "id": "memory-003",
     "imagePath": "/data/memories/memory-003/image.jpg",
     "storyPath": "/data/memories/memory-003/story.txt"
+  },
+  {
+    "id": "memory-1755090646963",
+    "imagePath": "/data/memories/memory-001/image.jpg",
+    "storyPath": "/data/memories/memory-1755090646963/story.txt"
   }
 ]

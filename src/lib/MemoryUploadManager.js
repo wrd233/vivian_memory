@@ -2,7 +2,7 @@
  * 记忆上传管理器 - 创建上传界面和信纸样式表单
  * 提供优雅的牛皮纸质感的记忆输入界面
  */
-import { MemoryStorage } from './MemoryStorage.js';
+// 移除MemoryStorage导入，改为使用服务端API
 
 export class MemoryUploadManager {
   constructor() {
@@ -10,7 +10,7 @@ export class MemoryUploadManager {
     this.selectedColor = '#8B4513'; // 默认牛皮纸颜色
     this.uploadedImage = null;
     this.memoryText = '';
-    this.storage = new MemoryStorage();
+    this.apiUrl = 'http://localhost:3001/api';
     
     this.init();
   }
@@ -380,9 +380,9 @@ export class MemoryUploadManager {
   }
 
   /**
-   * 提交记忆
+   * 提交记忆到服务端
    */
-  submitMemory() {
+  async submitMemory() {
     if (!this.memoryText.trim()) {
       alert('请输入您的记忆内容');
       return;
@@ -394,15 +394,28 @@ export class MemoryUploadManager {
       color: this.selectedColor
     };
 
-    // 保存到存储系统
-    const memoryId = this.storage.addMemory(memoryData);
-    console.log('记忆已保存:', memoryId);
+    try {
+      const response = await fetch(`${this.apiUrl}/upload-memory`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(memoryData)
+      });
 
-    // 关闭界面
-    this.closeUploadInterface();
-    
-    // 显示成功提示
-    this.showSuccessMessage();
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        console.log('记忆已保存到服务端:', result.id);
+        this.closeUploadInterface();
+        this.showSuccessMessage();
+      } else {
+        alert('保存失败: ' + (result.error || '未知错误'));
+      }
+    } catch (error) {
+      console.error('上传失败:', error);
+      alert('保存失败，请检查网络连接');
+    }
   }
 
   /**
