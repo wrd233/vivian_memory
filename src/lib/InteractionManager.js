@@ -233,10 +233,17 @@ export class InteractionManager {
     
     console.log('开始聚焦动画，粒子位置:', particlePosition);
     
-    // 计算相机目标位置（粒子前方）
-    const targetPosition = particlePosition.clone();
-    targetPosition.z += 20; // 在粒子前方20个单位
-    targetPosition.y += 5;  // 稍微抬高视角
+    // 计算相机目标位置：沿当前视角方向移动到粒子附近
+    const direction = new THREE.Vector3();
+    this.camera.getWorldDirection(direction);
+    direction.normalize();
+    
+    // 计算相机到粒子的距离
+    const distanceToParticle = this.camera.position.distanceTo(particlePosition);
+    const targetDistance = 15; // 希望最终距离粒子15个单位
+    
+    // 沿视线方向移动到合适距离
+    const targetPosition = particlePosition.clone().sub(direction.multiplyScalar(targetDistance));
     
     // 禁用控制器
     this.controls.enabled = false;
@@ -259,11 +266,10 @@ export class InteractionManager {
           ? 4 * progress * progress * progress 
           : 1 - Math.pow(-2 * progress + 2, 3) / 2;
         
-        // 更新相机位置
+        // 更新相机位置（保持视角方向不变）
         this.camera.position.lerpVectors(startCameraPos, targetPosition, easeProgress);
         
-        // 更新相机目标
-        this.controls.target.lerpVectors(startTarget, particlePosition, easeProgress);
+        // 保持相机目标不变，仅移动位置
         this.controls.update();
         
         if (progress < 1) {
@@ -349,11 +355,10 @@ export class InteractionManager {
         ? 4 * progress * progress * progress 
         : 1 - Math.pow(-2 * progress + 2, 3) / 2;
       
-      // 恢复相机位置
+      // 恢复相机位置（保持视角方向不变）
       this.camera.position.lerpVectors(startCameraPos, this.originalCameraPosition, easeProgress);
       
-      // 恢复相机目标
-      this.controls.target.lerpVectors(startTarget, this.originalCameraTarget, easeProgress);
+      // 保持相机目标不变，仅恢复位置
       this.controls.update();
       
       if (progress < 1) {
