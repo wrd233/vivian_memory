@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>记忆管理后台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .stats {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+            color: #ccc;
+        }
+
+        .memory-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .memory-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .memory-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .memory-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .memory-text {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            color: #e0e0e0;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .memory-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 15px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2c3e50;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            height: 150px;
+            resize: vertical;
+        }
+
+        .image-preview {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #ccc;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: #4ecdc4;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            z-index: 1001;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌊 记忆管理后台</h1>
+        <p>管理您的粒子星海记忆</p>
+    </div>
+
+    <div class="controls">
+        <a href="/api/download-memories" class="btn btn-primary">📦 下载压缩包</a>
+        <button class="btn btn-success" onclick="showAddModal()">➕ 添加记忆</button>
+        <button class="btn btn-warning" onclick="refreshMemories()">🔄 刷新</button>
+    </div>
+
+    <div class="stats">
+        <span id="memory-count">加载中...</span>
+    </div>
+
+    <div class="loading" id="loading" style="display: none;">
+        🔄 加载记忆中...
+    </div>
+
+    <div class="empty-state" id="empty-state" style="display: none;">
+        <h3>📝 暂无记忆</h3>
+        <p>点击"添加记忆"来创建第一条记忆</p>
+    </div>
+
+    <div class="memory-list" id="memory-list">
+        <!-- 记忆卡片将在这里动态生成 -->
+    </div>
+
+    <!-- 添加/编辑模态框 -->
+    <div class="modal" id="memory-modal">
+        <div class="modal-content">
+            <h2 id="modal-title">添加记忆</h2>
+            <form id="memory-form">
+                <div class="form-group">
+                    <label for="memory-text">记忆内容：</label>
+                    <textarea id="memory-text" placeholder="在这里写下您的记忆..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="memory-image">图片：</label>
+                    <input type="file" id="memory-image" accept="image/*">
+                    <img id="image-preview" class="image-preview" style="display: none;">
+                </div>
+                <input type="hidden" id="memory-id">
+                <div class="form-group" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        let memories = [];
+
+        // 显示通知
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // 加载所有记忆
+        async function loadMemories() {
+            const loading = document.getElementById('loading');
+            const emptyState = document.getElementById('empty-state');
+            const memoryList = document.getElementById('memory-list');
+            
+            loading.style.display = 'block';
+            emptyState.style.display = 'none';
+            memoryList.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/memories');
+                const data = await response.json();
+                
+                memories = data.memories || [];
+                
+                document.getElementById('memory-count').textContent = 
+                    `共 ${memories.length} 条记忆`;
+
+                if (memories.length === 0) {
+                    emptyState.style.display = 'block';
+                } else {
+                    renderMemories(memories);
+                }
+            } catch (error) {
+                console.error('加载失败:', error);
+                showNotification('加载失败，请检查网络连接', 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        // 渲染记忆列表
+        function renderMemories(memories) {
+            const memoryList = document.getElementById('memory-list');
+            memoryList.innerHTML = '';
+
+            memories.forEach(memory => {
+                const card = document.createElement('div');
+                card.className = 'memory-card';
+                card.innerHTML = `
+                    <img class="memory-image" 
+                         src="${memory.imageUrl || '/data/memories/memory-001/image.jpg'}" 
+                         alt="记忆图片"
+                         onerror="this.src='/data/memories/memory-001/image.jpg'">
+                    <div class="memory-text">${memory.story}</div>
+                    <div class="memory-actions">
+                        <button class="btn btn-small btn-warning" onclick="editMemory('${memory.id}')">编辑</button>
+                        <button class="btn btn-small btn-primary" onclick="deleteMemory('${memory.id}')">删除</button>
+                    </div>
+                `;
+                memoryList.appendChild(card);
+            });
+        }
+
+        // 显示添加模态框
+        function showAddModal() {
+            document.getElementById('modal-title').textContent = '添加记忆';
+            document.getElementById('memory-form').reset();
+            document.getElementById('memory-id').value = '';
+            document.getElementById('image-preview').style.display = 'none';
+            document.getElementById('memory-modal').style.display = 'block';
+        }
+
+        // 显示编辑模态框
+        async function editMemory(id) {
+            const memory = memories.find(m => m.id === id);
+            if (!memory) return;
+
+            document.getElementById('modal-title').textContent = '编辑记忆';
+            document.getElementById('memory-text').value = memory.story;
+            document.getElementById('memory-id').value = id;
+            
+            // 加载图片预览
+            const imagePreview = document.getElementById('image-preview');
+            if (memory.imageUrl) {
+                imagePreview.src = memory.imageUrl;
+                imagePreview.style.display = 'block';
+            } else {
+                imagePreview.style.display = 'none';
+            }
+
+            document.getElementById('memory-modal').style.display = 'block';
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('memory-modal').style.display = 'none';
+        }
+
+        // 删除记忆
+        async function deleteMemory(id) {
+            if (!confirm('确定要删除这条记忆吗？')) return;
+
+            try {
+                const response = await fetch(`/api/memories/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showNotification('记忆已删除');
+                    loadMemories();
+                } else {
+                    showNotification('删除失败', 'error');
+                }
+            } catch (error) {
+                console.error('删除失败:', error);
+                showNotification('删除失败，请检查网络连接', 'error');
+            }
+        }
+
+        // 刷新记忆列表
+        function refreshMemories() {
+            loadMemories();
+            showNotification('记忆列表已刷新');
+        }
+
+        // 处理表单提交
+        document.getElementById('memory-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('memory-id').value;
+            const text = document.getElementById('memory-text').value;
+            const imageFile = document.getElementById('memory-image').files[0];
+            
+            if (!text.trim()) {
+                showNotification('请输入记忆内容', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('text', text);
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+
+            try {
+                const url = id ? `/api/memories/${id}` : '/api/memories';
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    body: formData
+                });
+
+                if (response.ok) {
+                    showNotification(id ? '记忆已更新' : '记忆已添加');
+                    closeModal();
+                    loadMemories();
+                } else {
+                    showNotification('操作失败', 'error');
+                }
+            } catch (error) {
+                console.error('操作失败:', error);
+                showNotification('操作失败，请检查网络连接', 'error');
+            }
+        });
+
+        // 图片预览
+        document.getElementById('memory-image').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const preview = document.getElementById('image-preview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 点击遮罩关闭模态框
+        document.getElementById('memory-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'memory-modal') {
+                closeModal();
+            }
+        });
+
+        // 页面加载完成后初始化
+        loadMemories();
+    </script>
+</body>
+</html>

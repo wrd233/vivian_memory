@@ -41,9 +41,10 @@ app.use(express.json());
 
 // 静态文件服务
 app.use('/data', express.static(path.join(__dirname, 'data')));
+app.use(express.static(path.join(__dirname)));
 
 // 获取随机记忆
-app.get('/api/random-memory', async (req, res) => {
+app.get('/api/random-memory', async (_req, res) => {
   try {
     log('Serving random memory');
     
@@ -81,7 +82,150 @@ app.get('/api/random-memory', async (req, res) => {
   }
 });
 
-// 上传新记忆
+// 获取所有记忆（用于管理页面）
+app.get('/api/memories', async (_req, res) => {
+  try {
+    log('Fetching all memories for admin');
+    
+    const memoriesPath = path.join(__dirname, 'data', 'memories.json');
+    const memoriesData = fs.readFileSync(memoriesPath, 'utf8');
+    const memories = JSON.parse(memoriesData);
+    
+    const memoriesWithContent = await Promise.all(memories.map(async (memory) => {
+      try {
+        const storyPath = path.join(__dirname, memory.storyPath);
+        const story = fs.readFileSync(storyPath, 'utf8');
+        return {
+          ...memory,
+          story: story
+        };
+      } catch (error) {
+        log(`Error reading story for ${memory.id}: ${error.message}`);
+        return {
+          ...memory,
+          story: '内容读取失败'
+        };
+      }
+    }));
+    
+    res.json({ memories: memoriesWithContent });
+    
+  } catch (error) {
+    log(`Error fetching memories: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch memories' });
+  }
+});
+
+// 获取单个记忆
+app.get('/api/memories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    log(`Fetching memory: ${id}`);
+    
+    const memoriesPath = path.join(__dirname, 'data', 'memories.json');
+    const memoriesData = fs.readFileSync(memoriesPath, 'utf8');
+    const memories = JSON.parse(memoriesData);
+    
+    const memory = memories.find(m => m.id === id);
+    if (!memory) {
+      return res.status(404).json({ error: 'Memory not found' });
+    }
+    
+    const storyPath = path.join(__dirname, memory.storyPath);
+    const story = fs.readFileSync(storyPath, 'utf8');
+    
+    res.json({
+      ...memory,
+      story: story
+    });
+    
+  } catch (error) {
+    log(`Error fetching memory ${req.params.id}: ${error.message}`);
+    res.status(500).json({ error: 'Failed to fetch memory' });
+  }
+});
+
+// 更新记忆
+app.put('/api/memories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text, image } = req.body;
+    
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Memory text is required' });
+    }
+    
+    log(`Updating memory: ${id}`);
+    
+    const memoriesPath = path.join(__dirname, 'data', 'memories.json');
+    const memoriesData = fs.readFileSync(memoriesPath, 'utf8');
+    const memories = JSON.parse(memoriesData);
+    
+    const memoryIndex = memories.findIndex(m => m.id === id);
+    if (memoryIndex === -1) {
+      return res.status(404).json({ error: 'Memory not found' });
+    }
+    
+    const memoryDir = path.join(__dirname, 'data', 'memories', id);
+    if (!fs.existsSync(memoryDir)) {
+      fs.mkdirSync(memoryDir, { recursive: true });
+    }
+    
+    // 更新故事文本
+    const storyPath = path.join(memoryDir, 'story.txt');
+    fs.writeFileSync(storyPath, text.trim(), 'utf8');
+    
+    // 更新图片（如果有）
+    if (image && image.startsWith('data:image')) {
+      const base64Data = image.replace(/^data:image\/jpeg;base64,/, "");
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+      fs.writeFileSync(path.join(memoryDir, 'image.jpg'), imageBuffer);
+    }
+    
+    log(`Successfully updated memory: ${id}`);
+    res.json({ success: true, message: 'Memory updated successfully' });
+    
+  } catch (error) {
+    log(`Error updating memory ${req.params.id}: ${error.message}`);
+    res.status(500).json({ error: 'Failed to update memory' });
+  }
+});
+
+// 删除记忆
+app.delete('/api/memories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    log(`Deleting memory: ${id}`);
+    
+    const memoriesPath = path.join(__dirname, 'data', 'memories.json');
+    const memoriesData = fs.readFileSync(memoriesPath, 'utf8');
+    const memories = JSON.parse(memoriesData);
+    
+    const memoryIndex = memories.findIndex(m => m.id === id);
+    if (memoryIndex === -1) {
+      return res.status(404).json({ error: 'Memory not found' });
+    }
+    
+    // 删除目录
+    const memoryDir = path.join(__dirname, 'data', 'memories', id);
+    if (fs.existsSync(memoryDir)) {
+      fs.rmSync(memoryDir, { recursive: true, force: true });
+    }
+    
+    // 从索引中移除
+    memories.splice(memoryIndex, 1);
+    fs.writeFileSync(memoriesPath, JSON.stringify(memories, null, 2), 'utf8');
+    
+    log(`Successfully deleted memory: ${id}`);
+    res.json({ success: true, message: 'Memory deleted successfully' });
+    
+  } catch (error) {
+    log(`Error deleting memory ${req.params.id}: ${error.message}`);
+    res.status(500).json({ error: 'Failed to delete memory' });
+  }
+});
+
+// 上传新记忆（保持兼容）
 app.post('/api/upload-memory', async (req, res) => {
   try {
     const { text, image } = req.body;
@@ -107,13 +251,12 @@ app.post('/api/upload-memory', async (req, res) => {
     // 处理图片（如果有）
     let imagePath = '/data/memories/' + memoryId + '/image.jpg';
     if (image && image.startsWith('data:image')) {
-      // 处理base64图片
       const base64Data = image.replace(/^data:image\/jpeg;base64,/, "");
       const imageBuffer = Buffer.from(base64Data, 'base64');
       fs.writeFileSync(path.join(memoryDir, 'image.jpg'), imageBuffer);
     } else {
       // 使用默认图片
-      imagePath = '/data/memories/memory-001/image.jpg'; // 默认图片
+      imagePath = '/data/memories/memory-001/image.jpg';
     }
     
     // 更新索引
@@ -143,12 +286,11 @@ app.post('/api/upload-memory', async (req, res) => {
 });
 
 // 下载memories压缩包
-app.get('/api/download-memories', async (req, res) => {
+app.get('/api/download-memories', async (_req, res) => {
   try {
     log('Preparing memories archive download');
     
     const memoriesDir = path.join(__dirname, 'data', 'memories');
-    const outputPath = path.join(__dirname, 'memories-archive.zip');
     
     // 检查memories目录是否存在
     if (!fs.existsSync(memoriesDir)) {
@@ -198,13 +340,13 @@ app.get('/api/download-memories', async (req, res) => {
 });
 
 // 请求日志中间件
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   log(`${req.method} ${req.path} - ${req.ip}`);
   next();
 });
 
 // 健康检查
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
