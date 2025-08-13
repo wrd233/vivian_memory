@@ -4,10 +4,10 @@ services:
   particle-sea:
     build: .
     ports:
-      - "3001:3001"  # 后端API
-      - "5173:5173"  # 前端开发服务器
+      - "8080:8080"  # 统一通过8080端口访问
     volumes:
       - ./data:/app/data  # 持久化记忆数据
     environment:
-      - NODE_ENV=development
-    command: npm run dev:full  # 同时启动前后端
+      - NODE_ENV=production
+      - PORT=8080
+    restart: unless-stopped

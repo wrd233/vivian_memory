@@ -14,6 +14,7 @@
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
+    "start": "npm run build && npm run server",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

@@ -34,13 +34,14 @@ app.use((req, res, next) => {
     next();
   }
 });
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // 解析JSON中间件
 app.use(express.json());
 
 // 静态文件服务
 app.use('/data', express.static(path.join(__dirname, 'data')));
+app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.static(path.join(__dirname)));
 
 // 获取随机记忆
@@ -348,6 +349,16 @@ app.use((req, _res, next) => {
 // 健康检查
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
+});
+
+// 根路径重定向到星空页面
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// 管理页面
+app.get('/admin', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 // 启动服务器

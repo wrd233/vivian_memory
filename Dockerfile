@@ -16,8 +16,18 @@ COPY . .
 # 创建数据目录
 RUN mkdir -p /app/data/memories
 
+# 安装构建工具
+RUN npm install -g vite
+
+# 构建前端
+RUN npm run build
+
 # 暴露端口
-EXPOSE 3001 5173
+EXPOSE 8080
+
+# 设置环境变量
+ENV NODE_ENV=production
+ENV PORT=8080
 
 # 启动命令
-CMD ["npm", "run", "dev:full"]
+CMD ["npm", "run", "server"]
