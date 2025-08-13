@@ -275,17 +275,21 @@ export class InteractionManager {
     
     console.log('开始聚焦动画，粒子位置:', particlePosition);
     
-    // 计算相机目标位置：沿当前视角方向移动到粒子附近
+    // 计算相机目标位置：让粒子位于屏幕中央并占据约三分之一面积
+    // 基于fov和屏幕尺寸计算合适的距离
+    const fov = this.camera.fov * (Math.PI / 180);
+    const particleSize = 1.0; // 假设粒子基础尺寸
+    const targetScreenHeightRatio = 0.33; // 占据屏幕高度的三分之一
+    
+    // 计算目标距离：距离 = 粒子尺寸 / (2 * tan(fov/2) * 目标屏幕比例)
+    const targetDistance = (particleSize / (2 * Math.tan(fov / 2) * targetScreenHeightRatio));
+    
     const direction = new THREE.Vector3();
     this.camera.getWorldDirection(direction);
     direction.normalize();
     
-    // 计算相机到粒子的距离
-    const distanceToParticle = this.camera.position.distanceTo(particlePosition);
-    const targetDistance = 15; // 希望最终距离粒子15个单位
-    
-    // 沿视线方向移动到合适距离
-    const targetPosition = particlePosition.clone().sub(direction.multiplyScalar(targetDistance));
+    // 沿视线方向移动到计算出的合适距离
+    const targetPosition = particlePosition.clone().sub(direction.multiplyScalar(Math.max(targetDistance, 2)));
     
     // 禁用控制器
     this.controls.enabled = false;

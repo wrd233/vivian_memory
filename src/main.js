@@ -114,7 +114,7 @@ class InteractiveParticleSea {
       
       // 更新粒子系统
       if (this.particleSystem) {
-        this.particleSystem.update(time);
+        this.particleSystem.update(time, this.sceneManager.getCamera());
       }
       
       // 更新交互管理器

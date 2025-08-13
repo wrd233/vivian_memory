@@ -209,7 +209,7 @@ export class ParticleSystem {
    * 更新粒子系统
    * 添加微妙的动画效果：上下飘动和闪烁
    */
-  update(time) {
+  update(time, camera = null) {
     if (!this.particles) return;
     
     const positions = this.geometry.attributes.position.array;
@@ -218,8 +218,12 @@ export class ParticleSystem {
     const waveOffsets = this.geometry.attributes.waveOffset.array;
     const flickerPhases = this.geometry.attributes.flickerPhase.array;
     
+    // 相机位置用于距离计算
+    const cameraPosition = camera ? camera.position : new THREE.Vector3(0, 0, 0);
+    
     for (let i = 0; i < this.particleCount; i++) {
       const x = positions[i * 3];
+      const y = positions[i * 3 + 1];
       const z = positions[i * 3 + 2];
       
       // 基础地形高度 - 沉稳缓慢的地形波动
@@ -239,10 +243,22 @@ export class ParticleSystem {
       const flickerPhase = flickerPhases[i];
       const flickerValue = Math.sin(time * flickerFrequency + flickerPhase) * 0.5 + 0.5;
       
-      // 更新透明度（带有闪烁效果）
+      // 计算相机距离相关的透明度
+      const particlePosition = new THREE.Vector3(x, floatY, z);
+      const distanceToCamera = cameraPosition.distanceTo(particlePosition);
+      
+      // 基础透明度
       const baseOpacity = this.calculateOpacity(floatY, x, z);
       const flickeredOpacity = baseOpacity * (1.0 + flickerValue * flickerAmplitude);
-      opacities[i] = Math.min(1.0, Math.max(0.2, flickeredOpacity));
+      
+      // 距离相关的透明度调整：越近越凝实
+      const minDistance = 5.0;
+      const maxDistance = 50.0;
+      const distanceFactor = 1.0 - Math.max(0, Math.min(1, (distanceToCamera - minDistance) / (maxDistance - minDistance)));
+      
+      // 应用距离因子到透明度，使近处粒子更凝实
+      const finalOpacity = Math.min(1.0, Math.max(0.1, flickeredOpacity * (0.3 + 0.7 * distanceFactor)));
+      opacities[i] = finalOpacity;
       
       // 更新颜色亮度（带有闪烁效果）
       const _heightRatio = (floatY + 25) / 50;
