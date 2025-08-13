@@ -1,0 +1,17 @@
+[
+  {
+    "id": "memory-001",
+    "imagePath": "/data/memories/memory-001/image.jpg",
+    "storyPath": "/data/memories/memory-001/story.txt"
+  },
+  {
+    "id": "memory-002",
+    "imagePath": "/data/memories/memory-002/image.jpg",
+    "storyPath": "/data/memories/memory-002/story.txt"
+  },
+  {
+    "id": "memory-003",
+    "imagePath": "/data/memories/memory-003/image.jpg",
+    "storyPath": "/data/memories/memory-003/story.txt"
+  }
+]

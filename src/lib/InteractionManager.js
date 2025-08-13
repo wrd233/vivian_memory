@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import TWEEN from 'three/examples/jsm/libs/tween.module.js';
+import { MemoryStorage } from './MemoryStorage.js';
 
 /**
  * 交互管理器 - 实现三阶段交互设计
@@ -15,6 +16,7 @@ export class InteractionManager {
     this.renderer = renderer;
     this.particleSystem = particleSystem;
     this.controls = controls;
+    this.memoryStorage = new MemoryStorage();
     
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
@@ -357,8 +359,11 @@ export class InteractionManager {
       // 应用背景模糊效果
       this.applyDepthOfField();
       
-      // 显示信息界面
+      // 显示信息界面（异步）
       this.showInfoInterface(particleIndex);
+      
+      // 注意：showInfoInterface现在是异步的，但不需要等待
+      // 因为界面会立即显示加载状态
       
       this.isAnimating = false;
       console.log('阅读模式已启动');
@@ -556,18 +561,38 @@ export class InteractionManager {
   /**
    * 显示信息界面
    */
-  showInfoInterface(particleIndex) {
-    // 根据粒子索引生成内容（这里使用示例数据）
-    const memoryData = this.generateMemoryContent(particleIndex);
-    
-    document.getElementById('particle-image').src = memoryData.image;
-    document.getElementById('particle-title').textContent = memoryData.title;
-    document.getElementById('particle-story').textContent = memoryData.story;
-    
-    // 淡入显示
-    this.infoContainer.style.opacity = '1';
-    this.infoContainer.style.visibility = 'visible';
-    this.infoContainer.style.transform = 'translate(-50%, -50%) scale(1)';
+  async showInfoInterface(particleIndex) {
+    try {
+      // 显示加载状态
+      document.getElementById('particle-title').textContent = '加载中...';
+      document.getElementById('particle-story').textContent = '正在唤醒这段记忆...';
+      
+      // 淡入显示
+      this.infoContainer.style.opacity = '1';
+      this.infoContainer.style.visibility = 'visible';
+      this.infoContainer.style.transform = 'translate(-50%, -50%) scale(1)';
+      
+      // 获取随机记忆（异步）
+      const memory = await this.memoryStorage.getRandomMemory();
+      
+      // 更新界面内容
+      if (memory.image) {
+        document.getElementById('particle-image').src = memory.image;
+        document.getElementById('particle-image').style.display = 'block';
+      } else {
+        // 如果没有图片，使用颜色背景
+        document.getElementById('particle-image').src = this.generateColorImage(memory.color);
+        document.getElementById('particle-image').style.display = 'block';
+      }
+      
+      document.getElementById('particle-title').textContent = '记忆碎片';
+      document.getElementById('particle-story').textContent = memory.text;
+      
+    } catch (error) {
+      console.error('显示记忆失败:', error);
+      document.getElementById('particle-title').textContent = '记忆读取失败';
+      document.getElementById('particle-story').textContent = '无法连接到记忆服务器，请检查网络连接。';
+    }
   }
 
   /**
@@ -579,30 +604,6 @@ export class InteractionManager {
     this.infoContainer.style.transform = 'translate(-50%, -50%) scale(0.9)';
   }
 
-  /**
-   * 生成记忆内容（示例数据）
-   */
-  generateMemoryContent(particleIndex) {
-    const memories = [
-      {
-        image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRkZENkEwIi8+CjxjaXJjbGUgY3g9IjQwIiBjeT0iNDAiIHI9IjIwIiBmaWxsPSIjRkZBOjMzIi8+Cjwvc3ZnPgo=',
-        title: '金色回忆',
-        story: '在那个温暖的黄昏，阳光透过窗户洒进来，照亮了整个房间。那一刻的宁静与美好，如同这片星海中最亮的星。'
-      },
-      {
-        image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjQTBDNEZGIi8+CjxjaXJjbGUgY3g9IjQwIiBjeT0iNDAiIHI9IjE1IiBmaWxsPSIjMzM5OUZGIi8+Cjwvc3ZnPgo=',
-        title: '蓝色梦境',
-        story: '深海的蓝色记忆，如同这片星海中的深邃部分。每一个光点都承载着一段被时间冲淡的故事。'
-      },
-      {
-        image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRkZBRjBGIi8+CjxjaXJjbGUgY3g9IjQwIiBjeT0iNDAiIHI9IjE4IiBmaWxsPSIjRkY2NjY2Ii8+Cjwvc3ZnPgo=',
-        title: '粉色温柔',
-        story: '那些温柔的瞬间，如同粉色的花瓣飘落在记忆的湖面上，泛起层层涟漪。'
-      }
-    ];
-    
-    return memories[particleIndex % memories.length];
-  }
 
   /**
    * 窗口大小调整处理
@@ -614,7 +615,7 @@ export class InteractionManager {
   /**
    * 更新交互管理器（已移除TWEEN依赖）
    */
-  update(time) {
+  update() {
     // TWEEN已替换为手动动画，这里不再需要更新
     // 保留此方法用于未来扩展
   }

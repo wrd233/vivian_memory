@@ -2,6 +2,7 @@ import { SceneManager } from './lib/SceneManager.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ParticleSystem } from './lib/ParticleSystem.js';
 import { InteractionManager } from './lib/InteractionManager.js';
+import { MemoryUploadManager } from './lib/MemoryUploadManager.js';
 import TWEEN from 'three/examples/jsm/libs/tween.module.js';
 
 /**
@@ -16,6 +17,7 @@ class InteractiveParticleSea {
     this.sceneManager = null;
     this.particleSystem = null;
     this.interactionManager = null;
+    this.memoryUploadManager = null;
     this.animationId = null;
     this.controls = null;
     
@@ -48,6 +50,9 @@ class InteractiveParticleSea {
     
     // 设置交互管理器
     this.setupInteractionManager();
+    
+    // 设置记忆上传管理器
+    this.setupMemoryUploadManager();
     
     // 开始渲染循环
     this.animate();
@@ -132,6 +137,13 @@ class InteractiveParticleSea {
   }
 
   /**
+   * 设置记忆上传管理器
+   */
+  setupMemoryUploadManager() {
+    this.memoryUploadManager = new MemoryUploadManager();
+  }
+
+  /**
    * 清理资源
    */
   dispose() {
@@ -145,6 +157,10 @@ class InteractiveParticleSea {
     
     if (this.interactionManager) {
       this.interactionManager.dispose();
+    }
+    
+    if (this.memoryUploadManager) {
+      this.memoryUploadManager.dispose();
     }
     
     if (this.sceneManager) {
