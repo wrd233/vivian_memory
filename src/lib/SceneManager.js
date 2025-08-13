@@ -26,20 +26,29 @@ export class SceneManager {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0a0a); // 深邃的暗色背景
 
+    // 确保容器有尺寸
+    const width = this.container.clientWidth || window.innerWidth;
+    const height = this.container.clientHeight || window.innerHeight;
+    const aspect = width / height;
+    
     // 创建透视相机
-    const aspect = this.container.clientWidth / this.container.clientHeight;
     this.camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
     this.camera.position.set(0, 50, 100);
     this.camera.lookAt(0, 0, 0);
-
+    
     // 创建WebGL渲染器
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true
     });
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+    this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.container.appendChild(this.renderer.domElement);
+    
+    // 设置渲染器样式
+    this.renderer.domElement.style.display = 'block';
+    this.renderer.domElement.style.width = '100%';
+    this.renderer.domElement.style.height = '100%';
 
     // 添加环境光和方向光
     const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
@@ -52,25 +61,6 @@ export class SceneManager {
     // 初始化射线投射器和鼠标向量
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
-  }
-
-  /**
-   * 设置事件监听器
-   */
-  setupEventListeners() {
-    window.addEventListener('resize', () => this.onWindowResize());
-  }
-
-  /**
-   * 窗口大小改变时的处理
-   */
-  onWindowResize() {
-    const width = this.container.clientWidth;
-    const height = this.container.clientHeight;
-
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height);
   }
 
   /**

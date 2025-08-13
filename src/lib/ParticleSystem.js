@@ -21,8 +21,11 @@ export class ParticleSystem {
    * 初始化粒子系统
    */
   init() {
+    console.log('ParticleSystem: Creating particles...');
     this.createParticles();
+    console.log('ParticleSystem: Creating particle mesh...');
     this.createParticleMesh();
+    console.log('ParticleSystem: Initialization complete');
   }
 
   /**
@@ -288,6 +291,13 @@ export class ParticleSystem {
    */
   getParticleCount() {
     return this.particleCount;
+  }
+
+  /**
+   * 获取粒子几何体
+   */
+  getGeometry() {
+    return this.geometry;
   }
 
   /**

@@ -1,6 +1,8 @@
 import { SceneManager } from './lib/SceneManager.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ParticleSystem } from './lib/ParticleSystem.js';
+import { InteractionManager } from './lib/InteractionManager.js';
+import TWEEN from 'three/examples/jsm/libs/tween.module.js';
 
 /**
  * 互动粒子星海 - 主入口文件
@@ -13,6 +15,7 @@ class InteractiveParticleSea {
   constructor() {
     this.sceneManager = null;
     this.particleSystem = null;
+    this.interactionManager = null;
     this.animationId = null;
     this.controls = null;
     
@@ -30,17 +33,21 @@ class InteractiveParticleSea {
     }
 
     // 初始化场景管理器
+    console.log('Initializing SceneManager...');
     this.sceneManager = new SceneManager(container);
+    console.log('SceneManager initialized');
     
     // 初始化粒子系统
     const scene = this.sceneManager.getScene();
+    console.log('Initializing ParticleSystem...');
     this.particleSystem = new ParticleSystem(scene);
+    console.log('ParticleSystem initialized');
     
     // 设置相机控制 - 阶段3：视觉升华
     this.setupControls();
     
-    // 设置鼠标交互（可选，因为OrbitControls已提供）
-    this.setupMouseInteraction();
+    // 设置交互管理器
+    this.setupInteractionManager();
     
     // 开始渲染循环
     this.animate();
@@ -69,19 +76,36 @@ class InteractiveParticleSea {
   }
 
   /**
-   * 设置鼠标交互 - 可选增强功能
+   * 设置交互管理器 - 三阶段交互系统
    */
-  setupMouseInteraction() {
-    // OrbitControls已提供基础交互，这里可以添加额外功能
-    // 如：鼠标悬停提示、粒子信息显示等
+  setupInteractionManager() {
+    const scene = this.sceneManager.getScene();
+    const camera = this.sceneManager.getCamera();
+    const renderer = this.sceneManager.getRenderer();
+    
+    this.interactionManager = new InteractionManager(
+      scene,
+      camera,
+      renderer,
+      this.particleSystem,
+      this.controls
+    );
   }
 
   /**
    * 动画循环 - 阶段4：优化与部署
    */
   animate() {
-    const animate = () => {
+    let frameCount = 0;
+    const animate = (currentTime) => {
       this.animationId = requestAnimationFrame(animate);
+      const time = currentTime * 0.001;
+      
+      // 调试输出 - 每100帧打印一次
+      if (frameCount % 100 === 0) {
+        console.log('Rendering frame', frameCount, 'at time', time);
+      }
+      frameCount++;
       
       // 更新控制器
       if (this.controls) {
@@ -90,7 +114,12 @@ class InteractiveParticleSea {
       
       // 更新粒子系统
       if (this.particleSystem) {
-        this.particleSystem.update(Date.now() * 0.001);
+        this.particleSystem.update(time);
+      }
+      
+      // 更新交互管理器
+      if (this.interactionManager) {
+        this.interactionManager.update(time);
       }
       
       // 渲染场景
@@ -99,7 +128,7 @@ class InteractiveParticleSea {
       }
     };
     
-    animate();
+    animate(0);
   }
 
   /**
@@ -112,6 +141,10 @@ class InteractiveParticleSea {
     
     if (this.particleSystem) {
       this.particleSystem.dispose();
+    }
+    
+    if (this.interactionManager) {
+      this.interactionManager.dispose();
     }
     
     if (this.sceneManager) {
