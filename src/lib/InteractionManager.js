@@ -29,7 +29,7 @@ export class InteractionManager {
     // 高亮效果参数
     this.highlightColor = new THREE.Color(1, 1, 1);
     this.highlightScale = 1.5;
-    this.hoverDistance = 15; // 悬停检测半径
+    this.hoverDistance = 8; // 悬停检测半径 - 减少以提高精度
     
     // 保存相机原始状态
     this.originalCameraPosition = new THREE.Vector3();
@@ -169,7 +169,7 @@ export class InteractionManager {
   }
 
   /**
-   * 获取悬停的粒子索引
+   * 获取悬停的粒子索引 - 使用射线投射优化精度
    */
   getHoveredParticle() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
@@ -179,6 +179,10 @@ export class InteractionManager {
     let closestIndex = null;
     let closestDistance = this.hoverDistance;
 
+    // 获取相机相关参数以提高精度
+    const cameraDirection = new THREE.Vector3();
+    this.camera.getWorldDirection(cameraDirection);
+    
     for (let i = 0; i < this.particleSystem.particleCount; i++) {
       particle.set(
         positions[i * 3],
@@ -186,15 +190,19 @@ export class InteractionManager {
         positions[i * 3 + 2]
       );
 
-      // 将粒子坐标转换到屏幕空间
+      // 计算粒子到射线的3D距离
+      const distance = this.raycaster.ray.distanceToPoint(particle);
+      
+      // 同时计算屏幕空间距离作为辅助判断
       const screenPosition = particle.clone().project(this.camera);
-      const distance = Math.sqrt(
+      const screenDistance = Math.sqrt(
         Math.pow(screenPosition.x - this.mouse.x, 2) + 
         Math.pow(screenPosition.y - this.mouse.y, 2)
       );
 
-      if (distance < closestDistance) {
-        closestDistance = distance;
+      // 综合3D距离和屏幕距离进行判断
+      if (distance < closestDistance && screenDistance < closestDistance * 2) {
+        closestDistance = Math.min(distance, screenDistance);
         closestIndex = i;
       }
     }
@@ -389,13 +397,13 @@ export class InteractionManager {
     const startTime = Date.now();
     const startCameraPos = this.camera.position.clone();
     
-    // 计算后退位置：沿当前视线方向后退一定距离
+    // 计算前进位置：沿当前视线方向前进一定距离
     const direction = new THREE.Vector3();
     this.camera.getWorldDirection(direction);
     direction.normalize();
     
-    const retreatDistance = 8; // 后退距离
-    const retreatPosition = startCameraPos.clone().add(direction.multiplyScalar(retreatDistance));
+    const advanceDistance = 5; // 前进距离
+    const advancePosition = startCameraPos.clone().add(direction.multiplyScalar(advanceDistance));
     
     const animate = () => {
       if (!this.isAnimating) return;
@@ -408,8 +416,8 @@ export class InteractionManager {
         ? 2 * progress * progress 
         : 1 - Math.pow(-2 * progress + 2, 2) / 2;
       
-      // 后退相机位置
-      this.camera.position.lerpVectors(startCameraPos, retreatPosition, easeProgress);
+      // 前进相机位置
+      this.camera.position.lerpVectors(startCameraPos, advancePosition, easeProgress);
       
       // 保持相机目标不变，仅移动位置
       this.controls.update();

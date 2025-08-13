@@ -14,6 +14,12 @@ export class ParticleSystem {
     this.material = null;
     this.noise2D = createNoise2D();
     
+    // 无限边界系统参数
+    this.tileSize = 150; // 单个tile的大小
+    this.activeTiles = 3; // 3x3网格
+    this.worldOffset = new THREE.Vector2(0, 0); // 世界偏移
+    this.infiniteParticles = null;
+    
     this.init();
   }
 
@@ -29,55 +35,58 @@ export class ParticleSystem {
   }
 
   /**
-   * 创建粒子数据 - 阶段1：粒子基础系统
+   * 创建无限边界粒子系统 - 9宫格平铺 + 程序化混合
    * 
-   * 创建由大量粒子组成的静态系统，摒弃立方体
-   * 使用BufferGeometry定义粒子位置，形成有机地形
+   * 使用3x3的tile网格，始终围绕摄像机中心，结合程序化噪点打破重复感
    */
   createParticles() {
     this.geometry = new THREE.BufferGeometry();
     
-    // 创建粒子属性数组
+    // 创建粒子属性数组 - 为无限边界优化
     const positions = new Float32Array(this.particleCount * 3);
     const colors = new Float32Array(this.particleCount * 3);
     const sizes = new Float32Array(this.particleCount);
     const opacities = new Float32Array(this.particleCount);
-    const originalY = new Float32Array(this.particleCount); // 原始Y坐标
-    const waveOffsets = new Float32Array(this.particleCount); // 波动偏移
-    const flickerPhases = new Float32Array(this.particleCount); // 闪烁相位
+    const originalY = new Float32Array(this.particleCount);
+    const waveOffsets = new Float32Array(this.particleCount);
+    const flickerPhases = new Float32Array(this.particleCount);
+    const tileOffsets = new Float32Array(this.particleCount * 2); // 用于无限边界
     
-    const gridSize = 150; // 阶段1：定义粒子分布范围
-    
+    // 为无限边界生成粒子
     for (let i = 0; i < this.particleCount; i++) {
-      // 阶段1：在二维平面上随机生成X和Z坐标
-      const x = (Math.random() - 0.5) * gridSize;
-      const z = (Math.random() - 0.5) * gridSize;
+      // 在基础tile内分布粒子
+      const tileX = (Math.random() - 0.5) * this.tileSize;
+      const tileZ = (Math.random() - 0.5) * this.tileSize;
       
-      // 阶段2：使用噪点函数计算Y坐标（高度）
-      const y = this.getTerrainHeight(x, z);
+      // 添加程序化噪点打破重复感
+      const noiseX = this.noise2D(tileX * 0.01, tileZ * 0.01) * 20;
+      const noiseZ = this.noise2D(tileX * 0.01 + 1000, tileZ * 0.01 + 1000) * 20;
+      
+      const x = tileX + noiseX;
+      const z = tileZ + noiseZ;
+      
+      // 使用无限地形函数
+      const y = this.getInfiniteTerrainHeight(x, z);
       
       positions[i * 3] = x;
       positions[i * 3 + 1] = y;
       positions[i * 3 + 2] = z;
       
-      // 保存原始Y坐标用于动画
+      // 保存基础信息
       originalY[i] = y;
-      
-      // 为每个粒子生成独特的波动偏移和闪烁相位
       waveOffsets[i] = Math.random() * Math.PI * 2;
       flickerPhases[i] = Math.random() * Math.PI * 2;
+      tileOffsets[i * 2] = 0; // 当前tile偏移
+      tileOffsets[i * 2 + 1] = 0;
       
-      // 阶段3：基于高度和位置计算颜色
-      const color = this.calculateColor(y, x, z);
+      // 计算无限边界下的颜色和属性
+      const color = this.calculateInfiniteColor(x, z, y);
       colors[i * 3] = color.r;
       colors[i * 3 + 1] = color.g;
       colors[i * 3 + 2] = color.b;
       
-      // 阶段3：基于高度和噪点计算大小
-      sizes[i] = this.calculateSize(y, x, z);
-      
-      // 阶段3：基于高度计算透明度
-      opacities[i] = this.calculateOpacity(y, x, z);
+      sizes[i] = this.calculateInfiniteSize(x, z, y);
+      opacities[i] = this.calculateInfiniteOpacity(x, z, y);
     }
     
     this.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -87,14 +96,18 @@ export class ParticleSystem {
     this.geometry.setAttribute('originalY', new THREE.BufferAttribute(originalY, 1));
     this.geometry.setAttribute('waveOffset', new THREE.BufferAttribute(waveOffsets, 1));
     this.geometry.setAttribute('flickerPhase', new THREE.BufferAttribute(flickerPhases, 1));
+    this.geometry.setAttribute('tileOffset', new THREE.BufferAttribute(tileOffsets, 2));
   }
 
   /**
-   * 使用Simplex Noise生成有机地形
-   * 阶段2：注入灵魂 - 有机地形与噪点
+   * 使用Simplex Noise生成无限边界地形
    */
-  getTerrainHeight(x, z) {
-    // 主要地形特征 - 大尺度起伏
+  getInfiniteTerrainHeight(x, z) {
+    // 使用周期性噪点确保tile边界无缝
+    const tileX = ((x % this.tileSize) + this.tileSize) % this.tileSize;
+    const tileZ = ((z % this.tileSize) + this.tileSize) % this.tileSize;
+    
+    // 主要地形特征 - 大尺度起伏（使用原始坐标保持连续性）
     const baseNoise = this.noise2D(x * 0.005, z * 0.005) * 15;
     
     // 中等尺度细节 - 山丘和山谷
@@ -103,8 +116,11 @@ export class ParticleSystem {
     // 小细节 - 地表纹理
     const microNoise = this.noise2D(x * 0.08, z * 0.08) * 3;
     
-    // 混合多个尺度的噪点，创造丰富的地形层次
-    const height = baseNoise + detailNoise + microNoise;
+    // 边界平滑混合
+    const edgeBlend = this.calculateEdgeBlend(x, z);
+    
+    // 混合地形，考虑边界平滑
+    const height = (baseNoise + detailNoise + microNoise) * edgeBlend;
     
     return height;
   }
@@ -227,7 +243,7 @@ export class ParticleSystem {
       const z = positions[i * 3 + 2];
       
       // 基础地形高度 - 沉稳缓慢的地形波动
-      const baseY = this.getTerrainHeight(x + Math.sin(time * 0.05) * 8, z + Math.cos(time * 0.05) * 8);
+      const baseY = this.getInfiniteTerrainHeight(x + Math.sin(time * 0.05) * 8, z + Math.cos(time * 0.05) * 8);
       
       // 添加上下飘动效果 - 沉稳微妙的波动
       const floatAmplitude = 0.3; // 飘动幅度（大幅减小）
@@ -393,6 +409,70 @@ export class ParticleSystem {
       
       this.geometry.attributes.color.needsUpdate = true;
     }, 2000);
+  }
+
+  /**
+   * 计算边界平滑混合因子
+   */
+  calculateEdgeBlend(x, z) {
+    // 在tile边界处进行平滑混合
+    const margin = 20; // 平滑边距
+    const halfTile = this.tileSize / 2;
+    
+    // 计算到tile边界的距离
+    const tileX = ((x % this.tileSize) + this.tileSize) % this.tileSize;
+    const tileZ = ((z % this.tileSize) + this.tileSize) % this.tileSize;
+    const distX = Math.abs(tileX - halfTile);
+    const distZ = Math.abs(tileZ - halfTile);
+    
+    // 平滑过渡函数
+    const blendX = Math.max(0, Math.min(1, (halfTile - distX) / margin));
+    const blendZ = Math.max(0, Math.min(1, (halfTile - distZ) / margin));
+    
+    return Math.min(blendX, blendZ);
+  }
+
+  /**
+   * 无限边界下的颜色计算
+   */
+  calculateInfiniteColor(x, z, y) {
+    const color = new THREE.Color();
+    
+    // 使用无限坐标计算，确保连续性
+    const normalizedHeight = (y + 25) / 50;
+    const heightRatio = Math.max(0, Math.min(1, normalizedHeight));
+    
+    // 使用无限噪点创建颜色变化
+    const colorNoise = (this.noise2D(x * 0.03, z * 0.03) + 1) * 0.5;
+    
+    // 创建金黄色调的海
+    const hue = 0.1 + colorNoise * 0.1;
+    const saturation = 0.6 + heightRatio * 0.3;
+    const lightness = 0.3 + heightRatio * 0.5;
+    
+    color.setHSL(hue, saturation, lightness);
+    return color;
+  }
+
+  /**
+   * 无限边界下的粒子大小计算
+   */
+  calculateInfiniteSize(x, z, y) {
+    const heightRatio = (y + 25) / 50;
+    const sizeNoise = (this.noise2D(x * 0.1, z * 0.1) + 1) * 0.5;
+    
+    return 1.5 + heightRatio * 2 + sizeNoise * 1;
+  }
+
+  /**
+   * 无限边界下的粒子透明度计算
+   */
+  calculateInfiniteOpacity(x, z, y) {
+    const heightRatio = (y + 25) / 50;
+    const opacityNoise = (this.noise2D(x * 0.05, z * 0.05) + 1) * 0.5;
+    
+    // 低处的粒子更透明，创造深度感
+    return 0.4 + heightRatio * 0.5 + opacityNoise * 0.2;
   }
 
   /**
